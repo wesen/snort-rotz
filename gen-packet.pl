@@ -1,7 +1,9 @@
 #!/usr/bin/perl -w
+# $Id: gen-packet.pl,v 1.11 2002-02-11 12:56:24 manuel Exp $
 #
 # Generates and sends packets matching snort rules
-# $Id: gen-packet.pl,v 1.10 2002-01-28 01:54:17 manuel Exp $
+# Usage: modify the configuration below and give the rule files as
+# arguments (or feed them into stdin)
 #
 # TODO: uricontent, regex, rpc
 
@@ -17,13 +19,17 @@ use Net::RawIP;
 my @srcips = qw(192.168.23.2 192.168.23.3);
 
 # Our destination IPs (match HOME_NET in snort config)
-my @destips = qw(192.168.10.3);
+my @destips = qw(194.64.67.168);
 
 # Interface we want to send our packets from
 my $ethint = "eth0";
 
 # Are we on the same network, so we can spoof destination addresses too?
 my $localnet = 1;
+
+# Ethernet source and destination address
+my ($ethersrc, $etherdst) = ('de:ad:de:ad:de:ad',
+                             'c0:de:c0:de:c0:de');
 
 # Do we want debug?
 #my $debug = "rule,payload,params";
@@ -342,7 +348,7 @@ while (<>) {
 
       # we don't like packets that are too big (in fact, Net::RawIP
       # doesn't)
-      next if ($#payload >= 4000);
+      next if ($#payload >= 1500);
 
       $pktparams{ip} = gen_ipparams($srcip, $dstip, \%params);
 
@@ -360,8 +366,8 @@ while (<>) {
       debug_payload($payload) if ($debug =~ /payload/);
       my $pkt = new Net::RawIP(\%pktparams);
       $pkt->ethnew($ethint);
-      $pkt->ethset(source => 'de:ad:de:ad:be:ef',
-                   dest => 'de:ad:be:ef:08:15');
+      $pkt->ethset(source => $ethersrc,
+                   dest => $etherdst);
       $pkt->ethsend;
 
       print $params{msg}."\n";
