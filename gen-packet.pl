@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 #
 # Generates and sends packets matching snort rules
-# $Id: gen-packet.pl,v 1.7 2002-01-22 04:24:13 manuel Exp $
+# $Id: gen-packet.pl,v 1.8 2002-01-22 04:24:55 dividuum Exp $
 
 use strict;
 use Net::IPv4Addr qw( ipv4_parse );
@@ -229,11 +229,5 @@ sub ip_to_int {
 
 sub int_to_ip {
    my $ip = shift;
-   my @val;
-
-   for my $i (24, 16, 8, 0) {
-      push @val, (($ip >> $i) & 0xff);
-   }
-
-   return join(".", @val);
+   return join(".", map { $_ = ($ip >> $_) & 0xff } my @blah=(24,16,8,0));
 }
