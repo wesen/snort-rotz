@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 #
 # Generates and sends packets matching snort rules
-# $Id: gen-packet.pl,v 1.6 2002-01-22 03:57:29 manuel Exp $
+# $Id: gen-packet.pl,v 1.7 2002-01-22 04:24:13 manuel Exp $
 
 use strict;
 use Net::IPv4Addr qw( ipv4_parse );
@@ -22,7 +22,9 @@ while (<>) {
       my ($payload);
 
 
-      print "rule: $rule";
+      $dstport =~ s/:.*$//;
+      $srcport =~ s/:.*$//;
+#print "rule: $rule";
 
 #print "proto $proto, srcip $srcip, srcport $srcport\n";
 #print "dstip $dstip, dstport $dstport\n";
@@ -36,31 +38,36 @@ while (<>) {
             } else {
                $params{$1} = $2;
             }
-#print "$1: $2\n";
          } else {
             $params{$opt} = 1;
          }
       }
 
-      print "params: @{[ %params ]}\n";
+#print "params: @{[ %params ]}\n";
 
       # we don't like fragbits
       next if (defined($params{fragbits}) or
                defined($params{ipoption}));
 
       # ttl, ip, tos
-      $ipparams{daddr} = tbl_rand(@destips);
-
-      if (defined($params{sameip}) or 
-                  ($srcip =~ /(HOME_NET|SMTP|HTTP_SERVER|SQL_SERVER)/)) {
-         $ipparams{saddr} = $ipparams{daddr};
+      if ($dstip =~ /EXTERNAL_NET/) {
+         $ipparams{daddr} = tbl_rand(@srcips);
       } else {
+         $ipparams{daddr} = tbl_rand(@destips);
+      }
+
+      if (defined($params{sameip})) {
+         $ipparams{saddr} = $ipparams{daddr};
+      } elsif ($srcip =~ /(HOME_NET|SMTP|HTTP_SERVER|SQL_SERVER)/) {
+         $ipparams{saddr} = tbl_rand(@destips);
+      } else {
+         if ($srcip =~ /\[(.*?),.*\]/) {
+            $srcip = $1;
+         }
          if ($srcip =~ /[0-9]\./) {
             my ($ip, $cidr) = ipv4_parse($srcip);
             my $nip = ip_to_int($ip);
-            print "nip: $nip, ip $ip, cidr $cidr\n";
-            $nip = $nip + ((rand (2 ^ 32 + 1)) % (2 ^ (32 - $cidr)));
-            print "nip: $nip, ip $ip, cidr $cidr\n";
+            $nip = $nip + ((rand (2 ** 32 + 1)) % (2 ** (32 - $cidr)));
             $ipparams{saddr} = int_to_ip($nip);
          } else {
             $ipparams{saddr} = tbl_rand(@srcips);
@@ -81,13 +88,11 @@ while (<>) {
          if ($srcport eq "any") {
             $tcpparams{source} = rand(65535) + 1;
          } else {
-            $srcport =~ s/:$//;
             $tcpparams{source} = $srcport;
          }
          if ($dstport eq "any") {
             $tcpparams{dest} = rand(65535) + 1;
          } else {
-            $dstport =~ s/:$//;
             $tcpparams{dest} = $dstport;
          }
 
@@ -115,8 +120,6 @@ while (<>) {
                $tcpparams{$bla{$key}} = 1 if ($params{flags} =~ /$key/);
             }
          }
-
-         print "@{[ %tcpparams ]}\n";
 
          $pktparams{tcp} = \%tcpparams;
       } elsif ($proto eq "udp") {
@@ -163,8 +166,7 @@ while (<>) {
                    dest => 'de:ad:be:ef:08:15');
       $pkt->ethsend;
 
-      print "*************************\n";
-      <STDIN>;
+      print $params{msg}."\n";
    }
 }
 
@@ -183,17 +185,18 @@ sub gen_content {
       $content =~ s/\\:/:/g;
 
       while (length($content) > 0) {
-         print "content: $content\n";
          if ($content =~ s/^([^\|]+)//) {
             # handle escape characters
             $data .= $1;
-            print "blorg $1\n";
+            if ((substr($1, -1, 1)) eq "\\") {
+               $data .= substr($content, 0, 1);
+               $content = substr($content, 1);
+            }
          }
          if ($content =~ s/^\|(.+?)\|//) {
             my $str = $1;
             $str =~ s/\s+//g;
             $str =~ s/(..)/$1 /g;
-            print "content2: $str\n";
             my @values = split(/\s/, $str);
             $data .= pack("C*", map(hex, @values));
          }
@@ -207,7 +210,7 @@ sub gen_content {
       } elsif ($size =~ /<([0-9]*)/) {
          $size = $1 - 1;
       }
-      print "length ".length($data)." size $size\n";
+      return $data if ($size > 4000);
       $data .= (' ' x ($size - length($data)));
    }
 
