@@ -1,17 +1,17 @@
 #!/usr/bin/perl -w
 #
 # Generates and sends packets matching snort rules
-# $Id: gen-packet.pl,v 1.2 2002-01-22 00:34:31 manuel Exp $
+# $Id: gen-packet.pl,v 1.3 2002-01-22 01:22:04 manuel Exp $
 
 use strict;
 use Net::RawIP;
 
 my @srcips = qw(192.168.23.2 192.168.23.3);
-my @destips = qw(192.168.23.134);
+my @destips = qw(192.168.23.135);
 my $ethint = "eth0";
 
 while (<>) {
-   if (/(alert|log) (.*?) (.*?) (.*?) -> (.*?) (.*?) \((.*)\)/) {
+   if (/^(alert|log) (.*?) (.*?) (.*?) .*? (.*?) (.*?) \((.*)\)/) {
       my ($proto, $srcip, $srcport, $dstip, $dstport, $params) = 
          ($2,     $3,     $4,       $5,     $6,       $7);
       my (%params, %pktparams, %ipparams);
@@ -19,7 +19,7 @@ while (<>) {
 
       print "proto $proto, srcip $srcip, srcport $srcport\n";
       print "dstip $dstip, dstport $dstport\n";
-      print "params: $params\n\n";
+      print "params: $params\n";
 
       while ($params =~ /\s?(.*?):(.*?);/g) {
          print "$1: $2\n";
@@ -34,8 +34,8 @@ while (<>) {
       $ipparams{saddr} = tbl_rand(@srcips);
       $ipparams{daddr} = tbl_rand(@destips);
       $ipparams{tos} = $params{tos} if (defined($params{tos}));
-      $ipparams{tos} = $params{ttl} if (defined($params{ttl}));
-      $ipparams{id} = $params{ttl} if (defined($params{id}));
+      $ipparams{ttl} = $params{ttl} if (defined($params{ttl}));
+      $ipparams{id} = $params{id} if (defined($params{id}));
       $pktparams{ip} = \%ipparams;
 
       if (($proto eq "tcp") or ($proto eq "ip")) {
@@ -81,6 +81,8 @@ while (<>) {
       } elsif ($proto eq "udp") {
          my %udpparams;
 
+         print "udp\n";
+
          if ($srcport eq "any") {
             $udpparams{source} = rand(65535) + 1;
          } else {
@@ -95,6 +97,8 @@ while (<>) {
          $udpparams{data} = gen_content($params{content},
                                        $params{offset},
                                        $params{dsize});
+
+         print "@{[ %udpparams ]}\n";
 
          $pktparams{udp} = \%udpparams;
       } elsif($proto eq "icmp") {
@@ -116,12 +120,16 @@ while (<>) {
          $pktparams{icmp} = \%icmpparams;
       }
 
+      print "@{[ %pktparams ]}\n";
+
       my $pkt = new Net::RawIP;
       $pkt->set(\%pktparams);
       $pkt->ethnew($ethint);
       $pkt->ethset(source => 'de:ad:de:ad:be:ef',
                    dest => 'de:ad:be:ef:08:15');
       $pkt->ethsend;
+
+      print "*************************\n";
    }
 }
 
@@ -131,34 +139,40 @@ sub tbl_rand {
 
 sub gen_content {
    my ($content, $offset, $size) = @_;
-   my $data;
+   my $data = "";
 
-   return "" unless (defined($content));
+   if (defined($content)) {
+      $content =~ s/^"//;
+      $content =~ s/"$//;
+      $content =~ s/\\"/"/g;
+      $content =~ s/\\:/:/g;
 
-   $content =~ s/^"//;
-   $content =~ s/"$//;
-   $content =~ s/\\"/"/g;
-   $content =~ s/\\:/:/g;
-
-   while (length($content) > 0) {
-      if ($content =~ s/^([^\|]*)//) {
-         # handle escape characters
-         $data .= $1;
-      }
-      if ($content =~ s/^\|(.*)\|//) {
-         my $str = $1;
-         $str =~ s/\s+//g;
-         $str =~ s/(..)/$1 /g;
-         print "content: $str\n";
-         my @values = split(/\s/, $str);
-
-         print "values: ".join(", ", map(hex, @values))."\n";
-         $data .= pack("C*", map(hex, @values));
+      while (length($content) > 0) {
+         if ($content =~ s/^([^\|]*)//) {
+            # handle escape characters
+            $data .= $1;
+         }
+         if ($content =~ s/^\|(.*)\|//) {
+            my $str = $1;
+            $str =~ s/\s+//g;
+            $str =~ s/(..)/$1 /g;
+            print "content: $str\n";
+            my @values = split(/\s/, $str);
+            $data .= pack("C*", map(hex, @values));
+         }
       }
    }
 
    $data = ((' ' x $offset) . $data) if (defined($offset));
-   $data .= (' ' x ($size - length($data))) if (defined($size));
+   if (defined($size)) {
+      if ($size =~ />([0-9]*)/) {
+         $size = $1 + 1;
+      } elsif ($size =~ /<([0-9]*)/) {
+         $size = $1 - 1;
+      }
+      print "length ".length($data)." size $size\n";
+      $data .= (' ' x ($size - length($data)));
+   }
 
    return $data;
 }
