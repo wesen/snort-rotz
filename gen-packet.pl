@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 #
 # Generates and sends packets matching snort rules
-# $Id: gen-packet.pl,v 1.4 2002-01-22 01:45:19 manuel Exp $
+# $Id: gen-packet.pl,v 1.5 2002-01-22 01:47:07 manuel Exp $
 
 use strict;
 use Net::RawIP;
@@ -43,7 +43,11 @@ while (<>) {
          $ipparams{saddr} = tbl_rand(@srcips);
       }
       $ipparams{tos} = $params{tos} if (defined($params{tos}));
-      $ipparams{ttl} = $params{ttl} if (defined($params{ttl}));
+      if (defined($params{ttl})) {
+         $ipparams{ttl} = $params{ttl};
+      } else {
+         $ipparams{ttl} = rand 63;
+      }
       $ipparams{id} = $params{id} if (defined($params{id}));
       $pktparams{ip} = \%ipparams;
 
