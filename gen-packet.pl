@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 #
 # Generates and sends packets matching snort rules
-# $Id: gen-packet.pl,v 1.3 2002-01-22 01:22:04 manuel Exp $
+# $Id: gen-packet.pl,v 1.4 2002-01-22 01:45:19 manuel Exp $
 
 use strict;
 use Net::RawIP;
@@ -21,9 +21,14 @@ while (<>) {
       print "dstip $dstip, dstport $dstport\n";
       print "params: $params\n";
 
-      while ($params =~ /\s?(.*?):(.*?);/g) {
-         print "$1: $2\n";
-         $params{$1} = $2;
+      while ($params =~ /\s?(.*?);/g) {
+         my $opt = $1;
+         if ($opt =~ /(.*?):(.*)/) {
+            $params{$1} = $2;
+            print "$1: $2\n";
+         } else {
+            $params{$opt} = 1;
+         }
       }
 
       # we don't like fragbits
@@ -31,8 +36,12 @@ while (<>) {
                defined($params{ipoption}));
 
       # ttl, ip, tos
-      $ipparams{saddr} = tbl_rand(@srcips);
       $ipparams{daddr} = tbl_rand(@destips);
+      if (defined($params{sameip})) {
+         $ipparams{saddr} = $ipparams{daddr};
+      } else {
+         $ipparams{saddr} = tbl_rand(@srcips);
+      }
       $ipparams{tos} = $params{tos} if (defined($params{tos}));
       $ipparams{ttl} = $params{ttl} if (defined($params{ttl}));
       $ipparams{id} = $params{id} if (defined($params{id}));
@@ -81,8 +90,6 @@ while (<>) {
       } elsif ($proto eq "udp") {
          my %udpparams;
 
-         print "udp\n";
-
          if ($srcport eq "any") {
             $udpparams{source} = rand(65535) + 1;
          } else {
@@ -95,10 +102,8 @@ while (<>) {
          }
 
          $udpparams{data} = gen_content($params{content},
-                                       $params{offset},
-                                       $params{dsize});
-
-         print "@{[ %udpparams ]}\n";
+                                        $params{offset},
+                                        $params{dsize});
 
          $pktparams{udp} = \%udpparams;
       } elsif($proto eq "icmp") {
@@ -120,10 +125,7 @@ while (<>) {
          $pktparams{icmp} = \%icmpparams;
       }
 
-      print "@{[ %pktparams ]}\n";
-
-      my $pkt = new Net::RawIP;
-      $pkt->set(\%pktparams);
+      my $pkt = new Net::RawIP(\%pktparams);
       $pkt->ethnew($ethint);
       $pkt->ethset(source => 'de:ad:de:ad:be:ef',
                    dest => 'de:ad:be:ef:08:15');

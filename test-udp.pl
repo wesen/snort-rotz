@@ -9,3 +9,10 @@ $a->ethnew("eth0");
 $a->ethset(source => 'de:ad:de:ad:de:ad',
            dest => 'de:ad:de:ad:de:ad');
 $a->ethsend;
+
+my $a = new Net::RawIP({ip => { ttl => 0},
+                        icmp => { data => "blorg" }});
+$a->ethnew("eth0");
+$a->ethset(source => 'de:ad:de:ad:de:ad',
+           dest => 'de:ad:de:ad:de:ad');
+$a->ethsend;

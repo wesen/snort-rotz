@@ -1,5 +1,5 @@
 # (C) Copyright 2001, Martin Roesch, Brian Caswell, et al.  All rights reserved.
-# $Id: test.rules,v 1.1 2002-01-22 01:22:18 manuel Exp $
+# $Id: test.rules,v 1.2 2002-01-22 01:45:19 manuel Exp $
 #------------------
 # BAD TRAFFIC RULES
 #------------------
@@ -8,11 +8,11 @@
 # and are extremely quick signatures
 #
 
-#alert tcp $EXTERNAL_NET any <> $HOME_NET 0 (msg:"BAD TRAFFIC tcp port 0 traffic"; sid:524;  classtype:misc-activity; rev:3;)
+alert tcp $EXTERNAL_NET any <> $HOME_NET 0 (msg:"BAD TRAFFIC tcp port 0 traffic"; sid:524;  classtype:misc-activity; rev:3;)
 alert udp $EXTERNAL_NET any <> $HOME_NET 0 (msg:"BAD TRAFFIC udp port 0 traffic"; sid:525; dsize:>6  classtype:misc-activity; rev:4;)
-#alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"BAD TRAFFIC data in TCP SYN packet"; flags:S; dsize:>6;  sid:526;  classtype:misc-activity; rev:3;)
-#alert ip any any <> 127.0.0.0/8 any (msg:"BAD TRAFFIC loopback traffic"; classtype:bad-unknown; sid:528; rev:2;)
-#alert ip any any -> any any (msg:"BAD TRAFFIC same SRC/DST"; sameip; reference:cve,CVE-1999-0016; reference:url,www.cert.org/advisories/CA-1997-28.html; classtype:bad-unknown; sid:527; rev:3;)
-#alert ip $EXTERNAL_NET any -> $HOME_NET any (msg:"BAD TRAFFIC ip reserved bit set"; fragbits:R; sid:523;  classtype:misc-activity; rev:3;)
-#alert ip $EXTERNAL_NET any -> $HOME_NET any (msg:"BAD TRAFFIC 0 ttl"; ttl:0; sid:1321;  classtype:misc-activity; rev:4;)
-#alert ip $EXTERNAL_NET any -> $HOME_NET any (msg:"BAD TRAFFIC bad frag bits"; fragbits: MD; sid:1323;  classtype:misc-activity; rev:4;)
+alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"BAD TRAFFIC data in TCP SYN packet"; flags:S; dsize:>6;  sid:526;  classtype:misc-activity; rev:3;)
+alert ip any any <> 127.0.0.0/8 any (msg:"BAD TRAFFIC loopback traffic"; classtype:bad-unknown; sid:528; rev:2;)
+alert ip any any -> any any (msg:"BAD TRAFFIC same SRC/DST"; sameip; reference:cve,CVE-1999-0016; reference:url,www.cert.org/advisories/CA-1997-28.html; classtype:bad-unknown; sid:527; rev:3;)
+alert ip $EXTERNAL_NET any -> $HOME_NET any (msg:"BAD TRAFFIC ip reserved bit set"; fragbits:R; sid:523;  classtype:misc-activity; rev:3;)
+alert ip $EXTERNAL_NET any -> $HOME_NET any (msg:"BAD TRAFFIC 0 ttl"; ttl:0; sid:1321;  classtype:misc-activity; rev:4;)
+alert ip $EXTERNAL_NET any -> $HOME_NET any (msg:"BAD TRAFFIC bad frag bits"; fragbits: MD; sid:1323;  classtype:misc-activity; rev:4;)
